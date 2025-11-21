@@ -123,7 +123,8 @@ const handleSendSOS = async () => {
         {/* Text yêu cầu của bạn */}
         <h1 className="text-3xl font-bold text-red-600 mb-2">SOS KHẨN CẤP</h1>
         <p className="text-gray-600 mb-4">Vì để không ai bị bỏ lại, hãy sử dụng khi bạn thật sự cần cứu trợ</p>
-        <p className="text-gray-600 mb-6">Nếu không, hãy giúp mình 1 share để chúng ta cùng nhau làm điều gì đó ý nghĩa</p>
+        <p className="text-gray-600 mb-4">Nếu không, hãy giúp mình 1 share để chúng ta cùng nhau làm điều gì đó ý nghĩa</p>
+        <p className="text-black font-bold mb-4">Người Việt Thương Người Việt</p>
 
         {/* Chỉ báo GPS (Nhỏ gọn, không gây cản trở) */}
         <div className="flex items-center gap-2 mb-4 text-xs text-gray-400">
