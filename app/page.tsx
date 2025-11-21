@@ -96,31 +96,25 @@ export default function VictimPage() {
   };
 
   // 3. Xử lý Reset / Gửi lại (CÓ XÓA TIN CŨ)
-  const handleReset = async () => {
-      if (!confirm("⚠️ CẢNH BÁO:\nHành động này sẽ xóa yêu cầu cũ và cập nhật vị trí mới của bạn.\n\nBạn có chắc chắn muốn gửi lại không?")) {
-          return;
-      }
+ const handleReset = async () => {
+      if (!confirm("⚠️ Bạn có chắc muốn hủy tin cũ để gửi lại không?")) return;
 
-      // Thử xóa tin cũ trên server (nếu có mạng)
-      const oldId = localStorage.getItem('sos_id');
-      const oldPhone = localStorage.getItem('sos_phone');
+      const oldPhone = localStorage.getItem('sos_phone'); // Lấy SĐT cũ
 
-      if (oldId && oldPhone) {
+      if (oldPhone) {
           try {
+              // Gọi API hủy (chuyển status -> CANCELLED)
               await axios.post('https://sos-api-k9iv.onrender.com/api/sos/cancel', {
-                  id: parseInt(oldId),
-                  phone: oldPhone
+                  phone: oldPhone 
               });
           } catch (e) {
-              console.error("Không xóa được tin cũ (có thể do mất mạng), nhưng vẫn cho reset form");
+              console.error("Lỗi mạng khi hủy tin cũ");
           }
       }
 
-      // Xóa local storage và reset giao diện
+      // Xóa localStorage để nhập mới
       localStorage.removeItem('sos_sent');
-      localStorage.removeItem('sos_id');
-      // Giữ lại số điện thoại (sos_phone) để người dùng đỡ phải nhập lại, hoặc xóa tùy bạn. 
-      // Ở đây mình giữ lại state phone hiện tại.
+      // localStorage.removeItem('sos_phone'); // Có thể giữ lại phone để user đỡ nhập lại
       setIsSent(false);
   };
 
