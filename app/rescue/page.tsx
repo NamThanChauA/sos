@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Navigation, Phone, RefreshCw, MapPin, CheckCircle, X, AlertTriangle } from 'lucide-react';
 
+// --- TYPES ---
 interface Victim {
   id: number;
   phone: string;
@@ -20,7 +21,7 @@ export default function RescuerDashboard() {
   const [loading, setLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
 
-  // State cho Modal xác nhận
+  // State cho Modal
   const [showModal, setShowModal] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [inputCode, setInputCode] = useState('');
@@ -42,13 +43,12 @@ export default function RescuerDashboard() {
     return `${km.toFixed(1)}km`;
   };
 
-  // 1. Lấy vị trí Cứu hộ (Vẫn chạy ngầm để lấy tọa độ chính xác cho nút Chỉ đường)
+  // 1. Lấy GPS
   useEffect(() => {
     if (!navigator.geolocation) {
-        setGpsError('Máy không hỗ trợ GPS');
+        setGpsError('Thiết bị không hỗ trợ GPS');
         return;
     }
-    // watchPosition vẫn giữ để cập nhật myLocation liên tục (nhưng không trigger fetch lại data)
     const watchId = navigator.geolocation.watchPosition(
         (pos) => {
             setMyLocation({ lat: pos.coords.latitude, long: pos.coords.longitude });
@@ -56,21 +56,26 @@ export default function RescuerDashboard() {
         },
         (err) => {
             console.error(err);
-            setGpsError('Chưa lấy được vị trí của BẠN. Hãy bật GPS.');
+            setGpsError('Vui lòng bật GPS để tính khoảng cách.');
         },
-        { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  // 2. Fetch Data (Hàm này dùng chung cho nút bấm và lần load đầu)
+  // 2. Fetch Data (Thêm Timeout để tránh icon xoay mãi)
   const fetchData = async () => {
+      if (loading) return; // Chặn spam nút click
       setLoading(true);
+      
       try {
-        const res = await axios.get('https://sos-api-k9iv.onrender.com/api/sos'); 
+        // Thêm timeout 15 giây. Nếu server ngủ đông quá lâu thì báo lỗi để user bấm lại.
+        const res = await axios.get('https://sos-api-k9iv.onrender.com/api/sos', {
+            timeout: 15000 
+        }); 
+        
         let data: Victim[] = res.data;
 
-        // Tính khoảng cách dựa trên vị trí hiện tại (Lấy từ state myLocation)
         if (myLocation) {
           data = data.map(v => ({
             ...v,
@@ -78,21 +83,23 @@ export default function RescuerDashboard() {
           })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
         }
         setVictims(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Lỗi lấy data", err);
-        // alert("Không tải được danh sách."); // Tắt alert để đỡ phiền nếu mạng chập chờn
+        if (err.code === 'ECONNABORTED') {
+            alert("Server đang khởi động (do dùng gói Free). Vui lòng bấm LÀM MỚI lại sau 30 giây.");
+        }
       } finally {
-        setLoading(false);
+        setLoading(false); // Đảm bảo icon luôn dừng xoay dù thành công hay thất bại
       }
   };
 
-  // 3. CHỈ CHẠY 1 LẦN DUY NHẤT KHI VÀO WEB
+  // Chạy lần đầu
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Rỗng [] -> Không bao giờ tự chạy lại kể cả khi myLocation thay đổi
+  }, []); 
 
-  // --- XỬ LÝ MODAL XÁC NHẬN ---
+  // --- XỬ LÝ MODAL ---
   const openConfirmModal = (id: number) => {
       setSelectedId(id);
       setInputCode('');
@@ -108,14 +115,14 @@ export default function RescuerDashboard() {
             code: inputCode
         });
         
-        alert("Cảm ơn tấm lòng vàng của bạn! Ca này đã được cập nhật.");
+        alert("Đã cập nhật trạng thái cứu hộ thành công!");
         setShowModal(false);
-        fetchData(); // Chỉ reload khi đã xử lý xong
+        fetchData(); 
     } catch (error: any) {
         if (error.response && error.response.status === 401) {
-            alert("❌ SAI MÃ ĐỘI CỨU HỘ! Vui lòng kiểm tra lại.");
+            alert("❌ Sai mã đội cứu hộ.");
         } else {
-            alert("Lỗi kết nối. Thử lại sau.");
+            alert("Lỗi kết nối.");
         }
     }
   };
@@ -123,19 +130,20 @@ export default function RescuerDashboard() {
   return (
     <div className="p-4 bg-gray-100 min-h-screen pb-20 font-sans">
       
-      {/* Header & Nút Reload Thủ Công */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-100 z-10 py-2 shadow-sm px-2 -mx-4">
         <h1 className="text-xl font-bold text-blue-900 pl-2">DANH SÁCH CỨU HỘ</h1>
         <button 
             onClick={fetchData} 
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full shadow active:bg-blue-700 font-bold text-sm mr-2 active:scale-95 transition-transform"
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full shadow active:bg-blue-700 font-bold text-sm mr-2 active:scale-95 transition-transform disabled:bg-blue-400"
         >
              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-             LÀM MỚI
+             {loading ? 'ĐANG TẢI...' : 'LÀM MỚI'}
         </button>
       </div>
       
-      {/* Báo lỗi GPS */}
+      {/* GPS Warning */}
       {!myLocation && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 mb-4 rounded-lg text-sm flex items-center gap-2 animate-pulse">
             <MapPin size={16} /> 
@@ -143,6 +151,7 @@ export default function RescuerDashboard() {
           </div>
       )}
 
+      {/* List */}
       <div className="space-y-4">
         {victims.map((victim) => (
           <div key={victim.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500 relative">
@@ -151,7 +160,7 @@ export default function RescuerDashboard() {
                     <div className="font-bold text-lg text-black">{victim.name || 'Người dân'}</div>
                     <div className="font-mono text-gray-600 text-lg font-bold tracking-wider">{victim.phone}</div>
                     <div className="text-xs text-gray-400 mt-1">
-                        {victim.created_at ? new Date(victim.created_at).toLocaleTimeString('vi-VN') : 'Vừa xong'}
+                        {victim.created_at ? new Date(victim.created_at).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : ''}
                     </div>
                 </div>
                 <div className="text-right min-w-[80px]">
@@ -189,12 +198,11 @@ export default function RescuerDashboard() {
         {victims.length === 0 && !loading && (
             <div className="text-center text-gray-400 mt-20">
                 <p>Hiện tại không có tín hiệu SOS nào.</p>
-                <p className="text-sm">Hãy bấm "Làm mới" để cập nhật.</p>
             </div>
         )}
       </div>
 
-      {/* --- MODAL XÁC NHẬN (POPUP) --- */}
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -209,15 +217,15 @@ export default function RescuerDashboard() {
                 
                 <div className="p-6">
                     <p className="text-gray-600 text-sm italic mb-6 leading-relaxed text-justify border-l-4 border-gray-300 pl-3">
-                        "Tôi không dám chắc, nhưng nếu bạn không phải cứu hộ. Xin đừng phá hoại, hãy giúp cho nụ cười của những người bạn không quen biết được nở rộ vào ngày nắng lên."
+                        "Hành động nhỏ, ý nghĩa lớn. Cảm ơn bạn đã hỗ trợ cộng đồng."
                     </p>
 
-                    <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Nhập mã Đội cứu hộ</label>
+                    <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Mã Đội cứu hộ</label>
                     <input 
                         type="text" 
                         value={inputCode}
                         onChange={(e) => setInputCode(e.target.value)}
-                        placeholder="Nhập mã xác nhận..."
+                        placeholder="Nhập mã..."
                         className="w-full p-3 border-2 text-gray-600 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none font-bold text-lg text-center mb-6"
                         autoFocus
                     />
