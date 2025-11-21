@@ -139,7 +139,9 @@ export default function VictimPage() {
       <div className="max-w-md mx-auto bg-white rounded-xl shadow-xl overflow-hidden border-t-8 border-red-600">
         
         <div className="p-4 text-center border-b border-gray-100">
-             <h1 className="text-3xl font-bold text-red-600 mb-1">SOS KHẨN CẤP</h1>
+             <h1 className="text-3xl font-bold text-red-600 mb-1">SOS KHẨN CẤP VÙNG LŨ</h1>
+             <p className="text-xs font-medium text-black">Vì để không ai bị bỏ lại</p>
+             <p className="text-xs font-medium text-black mb-2">Hãy sử dụng nếu bạn thật sự cần</p>
              <p className="text-xs font-bold text-blue-800 bg-blue-50 inline-block px-3 py-1 rounded-full">Người Việt Thương Người Việt</p>
         </div>
 
