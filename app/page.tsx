@@ -65,41 +65,52 @@ export default function VictimPage() {
   };
 
   // 3. Hàm Gửi
-  const handleSendSOS = async () => {
+const handleSendSOS = async () => {
     if (!validateInputs()) return;
     setIsSending(true);
 
-    // Nỗ lực cuối cùng: Nếu chưa có tọa độ, thử lấy nhanh 1 lần nữa (timeout 3s)
-    // Nếu không được thì chấp nhận gửi 0,0
+    // 1. Lấy tọa độ từ biến chạy ngầm
     let finalLat = coordsRef.current?.lat || 0;
     let finalLong = coordsRef.current?.long || 0;
 
-    if (finalLat === 0) {
-      try {
+    // 2. Nếu chưa có (vẫn là 0), cố gắng "ép" lấy thêm lần nữa trong 5 giây
+    if (finalLat === 0 || finalLong === 0) {
+     try {
         const pos: any = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
+          navigator.geolocation.getCurrentPosition(resolve, reject, { 
+            enableHighAccuracy: true, 
+            timeout: 5000, 
+            maximumAge: 0 
+          });
         });
         finalLat = pos.coords.latitude;
         finalLong = pos.coords.longitude;
-      } catch (e) {
-        console.log("Chấp nhận gửi không có tọa độ");
+      } catch (e: any) { // Thêm :any để đọc được code lỗi
+        // XỬ LÝ THÔNG BÁO LỖI THÂN THIỆN
+        let msg = "Không thể lấy vị trí.";
+        if (e.code === 1) msg = "Bạn đã CHẶN quyền truy cập vị trí. Hãy vào Cài đặt -> Cho phép trình duyệt dùng Vị trí.";
+        else if (e.code === 2) msg = "GPS bị mất sóng hoặc chưa bật.";
+        else if (e.code === 3) msg = "Quá thời gian chờ (Mạng/GPS yếu).";
+        
+        console.error("GPS Error:", e); // Vẫn log để dev xem
+        alert(`⚠️ LỖI ĐỊNH VỊ:\n${msg}\n\nVui lòng kiểm tra lại và thử lại.`);
       }
+
     }
 
+    // 4. Nếu có tọa độ xịn rồi thì mới gửi
     try {
-      // Gửi về Golang Backend
-      await axios.post('https://sos-api-k9iv.onrender.com/api/sos', { // Thay URL server thật khi deploy
+      await axios.post('https://sos-api-k9iv.onrender.com/api/sos', { 
         phone,
         name,
         lat: finalLat,
         long: finalLong,
       });
-      alert("ĐÃ GỬI THÀNH CÔNG! Hãy chờ cứu hộ.");
-      // Reset form hoặc chuyển trang cảm ơn tùy bạn
+      alert("✅ ĐÃ GỬI THÀNH CÔNG! Hãy giữ yên vị trí và chờ cứu hộ.");
       setPhone('');
       setName('');
     } catch (error) {
-      alert("Lỗi mạng! Hãy thử lại hoặc nhắn tin SMS.");
+      alert("❌ Lỗi mạng! Vui lòng kiểm tra 4G/Wifi.");
     } finally {
       setIsSending(false);
     }
@@ -161,7 +172,7 @@ export default function VictimPage() {
             Bạn là đội cứu hộ? Bấm vào đây
         </Link>
       </div>
-      
+
     </div>
   );
 }
