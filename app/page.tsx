@@ -166,15 +166,17 @@ export default function VictimPage() {
         
         <div className="p-4 text-center border-b border-gray-100">
              <h1 className="text-3xl font-bold text-red-600 mb-1">SOS KHẨN CẤP</h1>
+             <p className="text-xs font-medium text-black">Vì để không ai bị bỏ lại</p>
+             <p className="text-xs font-medium text-black mb-2">Hãy sử dụng nếu bạn thật sự cần</p>
              <p className="text-xs font-bold text-blue-800 bg-blue-50 inline-block px-3 py-1 rounded-full">Người Việt Thương Người Việt</p>
         </div>
 
         <div className="flex border-b bg-gray-50">
             <button onClick={() => setMode('SOS')} className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 transition-colors ${mode === 'SOS' ? 'bg-white text-red-600 border-t-2 border-red-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                <Send size={16}/> TỰ CỨU
+                <Send size={16}/> SOS
             </button>
             <button onClick={() => setMode('REPORT_OTHER')} className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 transition-colors ${mode === 'REPORT_OTHER' ? 'bg-white text-blue-600 border-t-2 border-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                <UserPlus size={16}/> BÁO HỘ
+                <UserPlus size={16}/> BÁO HỘ NGƯỜI THÂN
             </button>
         </div>
 
