@@ -86,7 +86,7 @@ export default function RescuerDashboard() {
       } catch (err: any) {
         console.error("Lỗi lấy data", err);
         if (err.code === 'ECONNABORTED') {
-            alert("Server đang khởi động (do dùng gói Free). Vui lòng bấm LÀM MỚI lại sau 30 giây.");
+            alert("Server đang quá tải. Vui lòng bấm LÀM MỚI lại sau 15 giây.");
         }
       } finally {
         setLoading(false); // Đảm bảo icon luôn dừng xoay dù thành công hay thất bại
