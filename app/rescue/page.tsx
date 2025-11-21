@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Navigation, Phone, RefreshCw, MapPin, CheckCircle } from 'lucide-react';
+import { Navigation, Phone, RefreshCw, MapPin, CheckCircle, X, AlertTriangle } from 'lucide-react';
 
 interface Victim {
   id: number;
@@ -20,6 +20,11 @@ export default function RescuerDashboard() {
   const [loading, setLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
 
+  // State cho Modal xác nhận
+  const [showModal, setShowModal] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [inputCode, setInputCode] = useState('');
+
   // Hàm tính khoảng cách (Haversine)
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371; 
@@ -29,49 +34,42 @@ export default function RescuerDashboard() {
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Trả về Km
+    return R * c; 
   };
 
-  // Hàm hiển thị khoảng cách "dân dã"
   const formatDistance = (km: number) => {
-    if (km < 1) {
-        // Nếu dưới 1km thì hiện số mét (làm tròn chục)
-        return `${Math.round(km * 1000)}m`; 
-    }
-    // Nếu trên 1km thì hiện số lẻ 1 chữ số
+    if (km < 1) return `${Math.round(km * 1000)}m`; 
     return `${km.toFixed(1)}km`;
   };
 
-  // 1. Lấy vị trí Cứu hộ (Thử liên tục nếu chưa được)
+  // 1. Lấy vị trí Cứu hộ (Chạy ngầm để luôn có tọa độ chính xác nhất)
   useEffect(() => {
     if (!navigator.geolocation) {
         setGpsError('Máy không hỗ trợ GPS');
         return;
     }
-    // Theo dõi vị trí liên tục (watchPosition) thay vì chỉ lấy 1 lần
     const watchId = navigator.geolocation.watchPosition(
         (pos) => {
             setMyLocation({ lat: pos.coords.latitude, long: pos.coords.longitude });
-            setGpsError(''); // Xóa lỗi nếu đã bắt được
+            setGpsError(''); 
         },
         (err) => {
             console.error(err);
-            setGpsError('Chưa lấy được vị trí của BẠN. Hãy bật GPS để xem khoảng cách.');
+            setGpsError('Chưa lấy được vị trí của BẠN. Hãy bật GPS.');
         },
         { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
     );
-    
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  // 2. Fetch Data
+  // 2. Fetch Data (Chỉ chạy khi bấm nút hoặc lần đầu)
   const fetchData = async () => {
       setLoading(true);
       try {
-        // URL Backend Render
         const res = await axios.get('https://sos-api-k9iv.onrender.com/api/sos'); 
         let data: Victim[] = res.data;
 
+        // Tính khoảng cách dựa trên vị trí hiện tại (nếu có)
         if (myLocation) {
           data = data.map(v => ({
             ...v,
@@ -81,34 +79,39 @@ export default function RescuerDashboard() {
         setVictims(data);
       } catch (err) {
         console.error("Lỗi lấy data", err);
+        alert("Không tải được danh sách. Kiểm tra mạng!");
       } finally {
         setLoading(false);
       }
   };
 
-  // Polling dữ liệu và update khi có vị trí mới
+  // CHỈ CHẠY 1 LẦN KHI MỞ WEB (Bỏ dependency myLocation để tắt auto reload)
   useEffect(() => {
     fetchData();
-  }, [myLocation]);
+  }, []); 
 
-  const handleMarkDone = async (id: number) => {
-    // 1. Hỏi mã bí mật
-    const code = prompt("Nhập MÃ ĐỘI CỨU HỘ để xác nhận đã cứu xong ca này:");
-    
-    if (!code) return; // Nếu bấm hủy thì thôi
+  // --- XỬ LÝ MODAL XÁC NHẬN ---
+  const openConfirmModal = (id: number) => {
+      setSelectedId(id);
+      setInputCode('');
+      setShowModal(true);
+  };
+
+  const handleConfirmDone = async () => {
+    if (!inputCode || selectedId === null) return;
 
     try {
         await axios.post('https://sos-api-k9iv.onrender.com/api/sos/done', {
-            id: id,
-            code: code // Gửi mã lên server check
+            id: selectedId,
+            code: inputCode
         });
         
-        alert("Cảm ơn bạn! Ca này đã được ẩn khỏi danh sách.");
-        // Load lại danh sách ngay lập tức
-        fetchData();
+        alert("Cảm ơn tấm lòng vàng của bạn! Ca này đã được cập nhật.");
+        setShowModal(false);
+        fetchData(); // Load lại danh sách sau khi xong
     } catch (error: any) {
         if (error.response && error.response.status === 401) {
-            alert("❌ SAI MÃ BẢO MẬT! Bạn không có quyền thực hiện.");
+            alert("❌ SAI MÃ ĐỘI CỨU HỘ! Vui lòng kiểm tra lại.");
         } else {
             alert("Lỗi kết nối. Thử lại sau.");
         }
@@ -116,35 +119,40 @@ export default function RescuerDashboard() {
   };
 
   return (
-    <div className="p-4 bg-gray-100 min-h-screen pb-20">
-      <div className="flex justify-between items-center mb-2 sticky top-0 bg-gray-100 z-10 py-2">
-        <h1 className="text-2xl font-bold text-blue-900">DANH SÁCH CỨU HỘ</h1>
-        <button onClick={fetchData} className="p-2 bg-white rounded-full shadow active:bg-gray-200">
-             <RefreshCw size={20} className={loading ? 'animate-spin text-blue-600' : 'text-gray-600'} />
+    <div className="p-4 bg-gray-100 min-h-screen pb-20 font-sans">
+      
+      {/* Header & Nút Reload Thủ Công */}
+      <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-100 z-10 py-2 shadow-sm px-2 -mx-4">
+        <h1 className="text-xl font-bold text-blue-900 pl-2">DANH SÁCH CỨU HỘ</h1>
+        <button 
+            onClick={fetchData} 
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full shadow active:bg-blue-700 font-bold text-sm mr-2"
+        >
+             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+             LÀM MỚI
         </button>
       </div>
       
-      {/* Báo lỗi GPS của người cứu hộ */}
+      {/* Báo lỗi GPS */}
       {!myLocation && (
-          <div className="bg-yellow-200 text-yellow-800 p-3 mb-4 rounded-lg text-sm flex items-center gap-2 animate-pulse">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 mb-4 rounded-lg text-sm flex items-center gap-2 animate-pulse">
             <MapPin size={16} /> 
-            {gpsError || 'Đang dò tìm vị trí của bạn...'}
+            {gpsError || 'Đang dò tìm vị trí của bạn... Bấm "Làm mới" khi đã có vị trí.'}
           </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {victims.map((victim) => (
-          <div key={victim.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500">
+          <div key={victim.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500 relative">
             <div className="flex justify-between items-start mb-3">
                 <div>
                     <div className="font-bold text-lg text-black">{victim.name || 'Người dân'}</div>
-                    <div className="font-mono text-gray-600 text-lg font-bold">{victim.phone}</div>
+                    <div className="font-mono text-gray-600 text-lg font-bold tracking-wider">{victim.phone}</div>
                     <div className="text-xs text-gray-400 mt-1">
                         {victim.created_at ? new Date(victim.created_at).toLocaleTimeString('vi-VN') : 'Vừa xong'}
                     </div>
                 </div>
                 <div className="text-right min-w-[80px]">
-                    {/* Hiển thị khoảng cách thông minh */}
                     <span className={`block text-2xl font-bold ${victim.distance && victim.distance < 1 ? 'text-green-600' : 'text-red-600'}`}>
                         {victim.distance !== undefined ? formatDistance(victim.distance) : '?'}
                     </span>
@@ -168,18 +176,71 @@ export default function RescuerDashboard() {
             </div>
 
             <button 
-                onClick={() => handleMarkDone(victim.id)}
-                className="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center gap-2 hover:bg-gray-200 hover:text-gray-800 transition"
+                onClick={() => openConfirmModal(victim.id)}
+                className="w-full mt-4 py-3 bg-gray-50 text-gray-500 font-bold rounded-lg border border-gray-200 flex items-center justify-center gap-2 hover:bg-gray-200 hover:text-gray-800 transition text-sm"
             >
-                <CheckCircle size={18} /> ĐÁNH DẤU ĐÃ CỨU XONG
+                <CheckCircle size={16} /> ĐÁNH DẤU ĐÃ CỨU XONG
             </button>
           </div>
         ))}
         
         {victims.length === 0 && !loading && (
-            <div className="text-center text-gray-500 mt-10">Chưa có tin SOS nào.</div>
+            <div className="text-center text-gray-400 mt-20">
+                <p>Hiện tại không có tín hiệu SOS nào.</p>
+                <p className="text-sm">Hãy bấm "Làm mới" để cập nhật.</p>
+            </div>
         )}
       </div>
+
+      {/* --- MODAL XÁC NHẬN (POPUP) --- */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div className="bg-red-50 p-4 border-b border-red-100 flex justify-between items-center">
+                    <h3 className="font-bold text-red-700 flex items-center gap-2">
+                        <AlertTriangle size={20} /> XÁC NHẬN CỨU HỘ
+                    </h3>
+                    <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                        <X size={24} />
+                    </button>
+                </div>
+                
+                <div className="p-6">
+                    <p className="text-gray-600 text-sm italic mb-6 leading-relaxed text-justify border-l-4 border-gray-300 pl-3">
+                        "Tôi không dám chắc, nhưng nếu bạn không phải cứu hộ. Xin đừng phá hoại, hãy giúp cho nụ cười của những người bạn không quen biết được nở rộ vào ngày nắng lên."
+                    </p>
+
+                    <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Nhập mã Đội cứu hộ</label>
+                    <input 
+                        type="text" // Dùng text thay vì password để dễ nhập hơn lúc gấp
+                        value={inputCode}
+                        onChange={(e) => setInputCode(e.target.value)}
+                        placeholder="Nhập mã xác nhận..."
+                        className="w-full p-3 border-2 text-gray-600 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none font-bold text-lg text-center mb-6"
+                        autoFocus
+                    />
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <button 
+                            onClick={() => setShowModal(false)}
+                            className="py-3 rounded-lg font-bold text-gray-600 bg-gray-100 hover:bg-gray-200"
+                        >
+                            Hủy bỏ
+                        </button>
+                        <button 
+                            onClick={handleConfirmDone}
+                            disabled={!inputCode}
+                            className={`py-3 rounded-lg font-bold text-white shadow-lg 
+                                ${!inputCode ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
+                        >
+                            Xác nhận
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 }
