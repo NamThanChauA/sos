@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Navigation, Phone, RefreshCw, MapPin } from 'lucide-react';
+import { Navigation, Phone, RefreshCw, MapPin, CheckCircle } from 'lucide-react';
 
 interface Victim {
   id: number;
@@ -89,9 +89,31 @@ export default function RescuerDashboard() {
   // Polling dữ liệu và update khi có vị trí mới
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000); 
-    return () => clearInterval(interval);
   }, [myLocation]);
+
+  const handleMarkDone = async (id: number) => {
+    // 1. Hỏi mã bí mật
+    const code = prompt("Nhập MÃ ĐỘI CỨU HỘ để xác nhận đã cứu xong ca này:");
+    
+    if (!code) return; // Nếu bấm hủy thì thôi
+
+    try {
+        await axios.post('https://sos-api-k9iv.onrender.com/api/sos/done', {
+            id: id,
+            code: code // Gửi mã lên server check
+        });
+        
+        alert("Cảm ơn bạn! Ca này đã được ẩn khỏi danh sách.");
+        // Load lại danh sách ngay lập tức
+        fetchData();
+    } catch (error: any) {
+        if (error.response && error.response.status === 401) {
+            alert("❌ SAI MÃ BẢO MẬT! Bạn không có quyền thực hiện.");
+        } else {
+            alert("Lỗi kết nối. Thử lại sau.");
+        }
+    }
+  };
 
   return (
     <div className="p-4 bg-gray-100 min-h-screen pb-20">
@@ -144,6 +166,13 @@ export default function RescuerDashboard() {
                 <Navigation size={18} /> CHỈ ĐƯỜNG
               </a>
             </div>
+
+            <button 
+                onClick={() => handleMarkDone(victim.id)}
+                className="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center gap-2 hover:bg-gray-200 hover:text-gray-800 transition"
+            >
+                <CheckCircle size={18} /> ĐÁNH DẤU ĐÃ CỨU XONG
+            </button>
           </div>
         ))}
         
