@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
     Navigation, Phone, RefreshCw, MapPin, CheckCircle, 
-    X, AlertTriangle, HeartPulse, Package 
+    X, AlertTriangle, HeartPulse, Package, Info 
 } from 'lucide-react';
 
 // --- TYPES ---
@@ -135,10 +135,8 @@ export default function RescuerDashboard() {
   // --- LOGIC LỌC DANH SÁCH THEO TAB ---
   const filteredVictims = victims.filter((v) => {
       if (activeTab === 'SOS') {
-          // Tab SOS hiện những tin có type='SOS' HOẶC tin cũ không có type
           return v.type === 'SOS' || !v.type;
       } else {
-          // Tab SUPPLY chỉ hiện tin lương thực
           return v.type === 'SUPPLY';
       }
   });
@@ -147,7 +145,7 @@ export default function RescuerDashboard() {
     <div className="p-4 bg-gray-100 min-h-screen pb-20 font-sans">
       
       {/* HEADER & NÚT RELOAD */}
-      <div className="flex justify-between items-center mb-2 sticky top-0 bg-gray-100 z-10 py-2 shadow-sm px-2 -mx-4">
+      <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-100 z-10 py-2 shadow-sm px-2 -mx-4">
         <h1 className="text-xl font-bold text-blue-900 pl-2">DANH SÁCH CỨU HỘ</h1>
         <button 
             onClick={fetchData} 
@@ -157,6 +155,29 @@ export default function RescuerDashboard() {
              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
              {loading ? 'ĐANG TẢI...' : 'LÀM MỚI'}
         </button>
+      </div>
+
+      {/* --- THÔNG ĐIỆP GỬI ANH EM CỨU HỘ --- */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+        <p className="text-sm text-gray-700 italic mb-2 leading-relaxed">
+            "Em cảm ơn các anh em đã tham gia cứu hộ, em chúc mọi điều an lành đến với các anh em."
+        </p>
+        
+        <div className="bg-white p-3 rounded-lg border border-blue-100 mb-2">
+            <p className="text-sm font-bold text-blue-900 flex flex-col sm:flex-row sm:items-center gap-1">
+                <span className="flex items-center gap-1"><Info size={16}/> Mã đánh dấu thành công:</span> 
+                <span className="text-red-600 text-lg font-mono bg-red-50 px-2 py-0.5 rounded border border-red-200 inline-block w-fit mt-1 sm:mt-0">DBLMM</span>
+            </p>
+            <p className="text-[15px] font-medium text-black mt-1">("Đồng Bào Là Máu Mủ")</p>
+        </div>
+
+        <p className="text-xs text-gray-500 mt-2 pt-2">
+            Để tránh những hành vi xấu và bất tiện. Em hy vọng sẽ không ai bị bỏ lại và đừng ai làm điều gì bậy bạ.
+        </p>
+        <p className="text-xs text-gray-500 pt-2">
+            Chân thành.
+        </p>
       </div>
 
       {/* --- BỘ LỌC TAB (SOS / LƯƠNG THỰC) --- */}
