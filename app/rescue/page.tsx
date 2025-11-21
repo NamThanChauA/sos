@@ -42,12 +42,13 @@ export default function RescuerDashboard() {
     return `${km.toFixed(1)}km`;
   };
 
-  // 1. Lấy vị trí Cứu hộ (Chạy ngầm để luôn có tọa độ chính xác nhất)
+  // 1. Lấy vị trí Cứu hộ (Vẫn chạy ngầm để lấy tọa độ chính xác cho nút Chỉ đường)
   useEffect(() => {
     if (!navigator.geolocation) {
         setGpsError('Máy không hỗ trợ GPS');
         return;
     }
+    // watchPosition vẫn giữ để cập nhật myLocation liên tục (nhưng không trigger fetch lại data)
     const watchId = navigator.geolocation.watchPosition(
         (pos) => {
             setMyLocation({ lat: pos.coords.latitude, long: pos.coords.longitude });
@@ -62,14 +63,14 @@ export default function RescuerDashboard() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  // 2. Fetch Data (Chỉ chạy khi bấm nút hoặc lần đầu)
+  // 2. Fetch Data (Hàm này dùng chung cho nút bấm và lần load đầu)
   const fetchData = async () => {
       setLoading(true);
       try {
         const res = await axios.get('https://sos-api-k9iv.onrender.com/api/sos'); 
         let data: Victim[] = res.data;
 
-        // Tính khoảng cách dựa trên vị trí hiện tại (nếu có)
+        // Tính khoảng cách dựa trên vị trí hiện tại (Lấy từ state myLocation)
         if (myLocation) {
           data = data.map(v => ({
             ...v,
@@ -79,16 +80,17 @@ export default function RescuerDashboard() {
         setVictims(data);
       } catch (err) {
         console.error("Lỗi lấy data", err);
-        alert("Không tải được danh sách. Kiểm tra mạng!");
+        // alert("Không tải được danh sách."); // Tắt alert để đỡ phiền nếu mạng chập chờn
       } finally {
         setLoading(false);
       }
   };
 
-  // CHỈ CHẠY 1 LẦN KHI MỞ WEB (Bỏ dependency myLocation để tắt auto reload)
+  // 3. CHỈ CHẠY 1 LẦN DUY NHẤT KHI VÀO WEB
   useEffect(() => {
     fetchData();
-  }, []); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Rỗng [] -> Không bao giờ tự chạy lại kể cả khi myLocation thay đổi
 
   // --- XỬ LÝ MODAL XÁC NHẬN ---
   const openConfirmModal = (id: number) => {
@@ -108,7 +110,7 @@ export default function RescuerDashboard() {
         
         alert("Cảm ơn tấm lòng vàng của bạn! Ca này đã được cập nhật.");
         setShowModal(false);
-        fetchData(); // Load lại danh sách sau khi xong
+        fetchData(); // Chỉ reload khi đã xử lý xong
     } catch (error: any) {
         if (error.response && error.response.status === 401) {
             alert("❌ SAI MÃ ĐỘI CỨU HỘ! Vui lòng kiểm tra lại.");
@@ -126,7 +128,7 @@ export default function RescuerDashboard() {
         <h1 className="text-xl font-bold text-blue-900 pl-2">DANH SÁCH CỨU HỘ</h1>
         <button 
             onClick={fetchData} 
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full shadow active:bg-blue-700 font-bold text-sm mr-2"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-full shadow active:bg-blue-700 font-bold text-sm mr-2 active:scale-95 transition-transform"
         >
              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
              LÀM MỚI
@@ -137,7 +139,7 @@ export default function RescuerDashboard() {
       {!myLocation && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 mb-4 rounded-lg text-sm flex items-center gap-2 animate-pulse">
             <MapPin size={16} /> 
-            {gpsError || 'Đang dò tìm vị trí của bạn... Bấm "Làm mới" khi đã có vị trí.'}
+            {gpsError || 'Đang dò tìm vị trí của bạn...'}
           </div>
       )}
 
@@ -212,7 +214,7 @@ export default function RescuerDashboard() {
 
                     <label className="block text-xs font-bold text-gray-500 mb-2 uppercase">Nhập mã Đội cứu hộ</label>
                     <input 
-                        type="text" // Dùng text thay vì password để dễ nhập hơn lúc gấp
+                        type="text" 
                         value={inputCode}
                         onChange={(e) => setInputCode(e.target.value)}
                         placeholder="Nhập mã xác nhận..."
